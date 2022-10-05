@@ -1,6 +1,7 @@
 # THIS FILE WAS CHANGED ON - 19 Aug 2022
 
 from logging import getLogger
+
 from pymongo import MongoClient
 
 logger = getLogger(__name__)
@@ -9,7 +10,7 @@ clients = {}
 
 def connect(db, **kwargs):
     logger.debug('New MongoClient connection')
-    clients[db] = MongoClient(**kwargs, connect=False)
+    clients[db] = MongoClient(**kwargs, connect=False, uuidRepresentation='standard')
     return clients[db]
 
 
