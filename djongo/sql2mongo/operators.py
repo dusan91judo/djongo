@@ -52,6 +52,8 @@ class _Op:
         self.is_negated = False
         self._name = name
         self.precedence = OPERATOR_PRECEDENCE[name]
+        
+        self._options = {}
 
     def negate(self):
         raise NotImplementedError
@@ -508,6 +510,22 @@ class WhereOp(_Op, _StatementParser):
         return self._op.to_mongo()
 
 
+class CaseOp(_Op, _StatementParser):
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.statement.skip(2)
+        self._statement2ops()
+        self.evaluate()
+
+    def negate(self):
+        raise NotImplementedError
+
+    def to_mongo(self):
+        return self._op.to_mongo()
+
+
 class ParenthesisOp(_Op, _StatementParser):
 
     def to_mongo(self):
@@ -525,6 +543,7 @@ class ParenthesisOp(_Op, _StatementParser):
 
 class CmpOp(_Op):
 
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._identifier = SQLToken.token2sql(self.statement.left, self.query)
@@ -532,7 +551,8 @@ class CmpOp(_Op):
         if isinstance(self.statement.right, Identifier):
             raise SQLDecodeError('Join using WHERE not supported')
 
-        self._operator = OPERATOR_MAP[self.statement.token_next(0)[1].value]
+        sql_operation = self.statement.token_next(0)[1].value
+        self._operator = OPERATOR_MAP[sql_operation]
         index = re_index(self.statement.right.value)
 
         if self._operator in NEW_OPERATORS:
@@ -540,6 +560,12 @@ class CmpOp(_Op):
             self._constant = [self.params[i] for i in index]
         else:
             self._constant = self.params[index] if index is not None else MAP_INDEX_NONE[self.statement.right.value]
+
+        if sql_operation == 'iLIKE':
+            self._options = {'$options': 'im'}
+            self._constant = self._make_regex(self._constant)
+        if sql_operation == 'LIKE':
+            self._constant = self._make_regex(self._constant)
 
         if isinstance(self._constant, dict):
             self._field_ext, self._constant = next(iter(self._constant.items()))
@@ -558,9 +584,40 @@ class CmpOp(_Op):
             field += '.' + self._field_ext
 
         if not self.is_negated:
-            return {field: {self._operator: self._constant}}
+            return {field: {self._operator: self._constant, **self._options}}
         else:
-            return {field: {'$not': {self._operator: self._constant}}}
+            return {field: {'$not': {self._operator: self._constant, **self._options}}}
+
+    @staticmethod
+    def _check_embedded(to_match):
+        try:
+            check_dict = to_match
+            replace_chars = "\\%'"
+            for c in replace_chars:
+                if c == "'":
+                    check_dict = check_dict.replace("'", '"')
+                else:
+                    check_dict = check_dict.replace(c, "")
+            check_dict = json.loads(check_dict)
+            if isinstance(check_dict, dict):
+                return check_dict
+            else:
+                return to_match
+        except Exception as e:
+            return to_match
+
+    @staticmethod
+    def _make_regex(to_match):
+        to_match = CmpOp._check_embedded(to_match)
+        if isinstance(to_match, str):
+            to_match = to_match.replace('%', '.*')
+            regex = '^' + to_match + '$'
+        elif isinstance(to_match, dict):
+            field_ext, to_match = next(iter(to_match.items()))
+            regex = to_match
+        else:
+            raise SQLDecodeError
+        return regex
 
 
 OPERATOR_MAP = {
@@ -570,7 +627,9 @@ OPERATOR_MAP = {
     '>=': '$gte',
     '<=': '$lte',
     'IN': '$in',
-    'NOT IN': '$nin'
+    'NOT IN': '$nin',
+    'LIKE': '$regex',
+    'iLIKE': '$regex',
 }
 OPERATOR_PRECEDENCE = {
     'IS': 8,
