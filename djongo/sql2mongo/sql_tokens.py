@@ -130,7 +130,8 @@ class SQLIdentifier(AliasableToken):
         name = self.given_table
         alias2token = self.token_alias.alias2token
         try:
-            return alias2token[name].table
+            if not self.is_explicit_alias():
+                return alias2token[name].table
         except KeyError:
             return name
 
