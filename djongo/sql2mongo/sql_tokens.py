@@ -147,7 +147,11 @@ class SQLIdentifier(AliasableToken):
 
     @property
     def column(self) -> str:
-        name = self._token.get_real_name()
+        # case for order by, seems like changes in django 5.2 now uses index instead of column name
+        if self._token.__class__ == Token:
+            name = list(self.token_alias.alias2token.keys())[int(self._token.value) - 1]
+        else:
+            name = self._token.get_real_name()
         if name is None:
             raise SQLDecodeError
         return name
