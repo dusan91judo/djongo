@@ -29,7 +29,7 @@ class SQLToken:
 
     @staticmethod
     def tokens2sql(token: Token,
-                   query: 'query_module.BaseQuery'
+                   query: 'query_module.BaseQuery',
                    ) -> Iterator[all_token_types]:
         from .functions import SQLFunc
         if isinstance(token, Identifier):
@@ -54,6 +54,8 @@ class SQLToken:
                 yield from SQLToken.tokens2sql(tok, query)
         elif isinstance(token, Parenthesis):
             yield SQLPlaceholder(token, query)
+        elif token.ttype[2] == 'Integer':
+            yield SQLIdentifier(token, query)
         else:
             raise SQLDecodeError(f'Unsupported: {token.value}')
 
@@ -74,12 +76,19 @@ class AliasableToken(SQLToken):
     def __init__(self, *args):
         super().__init__(*args)
         self.token_alias: 'query_module.TokenAlias' = self.query.token_alias
+        token = args[0]
 
-        if self.alias:
+        if getattr(self, 'alias', None):
             self.token_alias.alias2token[self.alias] = self
             self.token_alias.token2alias[self] = self.alias
             if self.is_explicit_alias():
                 self.token_alias.aliased_names.add(self.alias)
+        # for django 5.2
+        # elif token.ttype[2] == 'Integer':
+        #     self.token_alias.alias2token[] = self
+        #     self.token_alias.token2alias[self] = self.column
+        #     if self.is_explicit_alias():
+        #         self.token_alias.aliased_names.add(self.column)
 
     def __hash__(self):
         if self.is_explicit_alias():
@@ -95,7 +104,11 @@ class AliasableToken(SQLToken):
     @property
     def alias(self) -> str:
         # bug fix sql parse
-        if not self._token.get_ordering():
+        try:
+            if not self._token.get_ordering():
+                return self._token.get_alias()
+        # Django 5.2
+        except AttributeError:
             return self._token.get_alias()
 
 
@@ -104,10 +117,14 @@ class SQLIdentifier(AliasableToken):
     def __init__(self, *args):
         super().__init__(*args)
         self._ord = None
-        if self._token.get_ordering():
-            # Bug fix for sql parse
-            self._ord = self._token.get_ordering()
-            self._token = self._token[0]
+        try:
+            if self._token.get_ordering():
+                # Bug fix for sql parse
+                self._ord = self._token.get_ordering()
+                self._token = self._token[0]
+        # can now use token as identifier
+        except AttributeError:
+            pass
 
     @property
     def order(self):
@@ -132,11 +149,17 @@ class SQLIdentifier(AliasableToken):
         try:
             if not self.is_explicit_alias():
                 return alias2token[name].table
-        except KeyError:
+        except KeyError, AttributeError:
             return name
 
     @property
     def given_table(self) -> str:
+        try:
+            if self._token.ttype[2] == 'Integer':
+                tok = list(self.token_alias.alias2token.values())[int(self._token.value) - 1]
+                return tok.table
+        except AttributeError, TypeError:
+            pass
         name = self._token.get_parent_name()
         if name is None:
             name = self._token.get_real_name()
