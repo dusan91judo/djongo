@@ -13,4 +13,5 @@ class DatabaseFeatures(BaseDatabaseFeatures):
     can_clone_databases = True
     test_db_allows_multiple_connections = False
     supports_unspecified_pk = True
-
+    can_return_rows_from_insert = True
+    can_return_columns_from_insert = True

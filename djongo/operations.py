@@ -118,3 +118,18 @@ class DatabaseOperations(BaseDatabaseOperations):
 
     def date_trunc_sql(self, lookup_type, field_name):
         return "DATE_TRUNC('%s', %s)" % (lookup_type, field_name)
+
+    def return_insert_columns(self, fields):
+        # Copied from driver for mysql
+        if not fields:
+            return "", ()
+        columns = [
+            "%s.%s"
+            % (
+                self.quote_name(field.model._meta.db_table),
+                self.quote_name(field.column),
+            )
+            for field in fields
+        ]
+        return "RETURNING %s" % ", ".join(columns), ()
+        return ["", ""]

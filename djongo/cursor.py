@@ -75,8 +75,14 @@ class Cursor:
 
     def fetchone(self):
         try:
-            return self.result.next()
+            result = self.result.next()
+            if not result:
+                print(result)
+            return result
         except StopIteration:
+            inserted_ids = getattr(self.result._query._result_generator, "inserted_ids", [])
+            if len(inserted_ids) == 1:
+                return [inserted_ids[-1]]
             return None
         except Exception as e:
             db_exe = DatabaseError()
@@ -84,4 +90,3 @@ class Cursor:
 
     def fetchall(self):
         return list(self.result)
-

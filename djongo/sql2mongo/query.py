@@ -288,6 +288,7 @@ class SelectQuery(DQLQuery):
             else:
                 ret.append(doc[selected.alias])
 
+        print(ret)
         return tuple(ret)
 
 
@@ -373,8 +374,8 @@ class InsertQuery(DMLQuery):
                 self._fill_values(statement=tok.tokens)
             elif tok.ttype in [Whitespace]:
                 continue
-            elif not tok.match(tokens.Keyword, 'VALUES'):
-                raise SQLDecodeError
+        if not self._values:
+            raise SQLDecodeError
 
     def execute(self):
         docs = []
@@ -409,6 +410,7 @@ class InsertQuery(DMLQuery):
             self._result_ref.last_row_id = auto['auto']['seq']
         else:
             self._result_ref.last_row_id = res.inserted_ids[-1]
+        self._result_generator = res
         logger.debug('inserted ids {}'.format(res.inserted_ids))
 
     def parse(self):
@@ -1020,6 +1022,3 @@ class Query:
         'DROP': _drop,
         'ALTER': _alter
     }
-
-
-
