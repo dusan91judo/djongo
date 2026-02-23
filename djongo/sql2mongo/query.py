@@ -288,7 +288,6 @@ class SelectQuery(DQLQuery):
             else:
                 ret.append(doc[selected.alias])
 
-        print(ret)
         return tuple(ret)
 
 
