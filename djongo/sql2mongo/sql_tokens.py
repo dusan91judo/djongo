@@ -149,7 +149,7 @@ class SQLIdentifier(AliasableToken):
         try:
             if not self.is_explicit_alias():
                 return alias2token[name].table
-        except KeyError, AttributeError:
+        except (KeyError, AttributeError):
             return name
 
     @property
@@ -158,7 +158,7 @@ class SQLIdentifier(AliasableToken):
             if self._token.ttype[2] == 'Integer':
                 tok = list(self.token_alias.alias2token.values())[int(self._token.value) - 1]
                 return tok.table
-        except AttributeError, TypeError:
+        except (AttributeError, TypeError):
             pass
         name = self._token.get_parent_name()
         if name is None:
