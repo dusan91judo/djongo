@@ -84,7 +84,7 @@ class Cursor:
             try:
                 _inserted_ids = self.result._query._result_generator.inserted_ids
             except AttributeError:
-                return None
+                pass
             if len(_inserted_ids) == 1:
                 return [_inserted_ids[-1]]
             return None
