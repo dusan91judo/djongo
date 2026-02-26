@@ -80,9 +80,13 @@ class Cursor:
                 print(result)
             return result
         except StopIteration:
-            inserted_ids = getattr(self.result._query._result_generator, "inserted_ids", [])
-            if len(inserted_ids) == 1:
-                return [inserted_ids[-1]]
+            _inserted_ids = []
+            try:
+                _inserted_ids = self.result._query._result_generator.inserted_ids
+            except AttributeError:
+                return None
+            if len(_inserted_ids) == 1:
+                return [_inserted_ids[-1]]
             return None
         except Exception as e:
             db_exe = DatabaseError()
