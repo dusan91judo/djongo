@@ -113,14 +113,14 @@ class _InNotInOp(_BinaryOp):
             return
 
         sql = SQLToken.token2sql(token, self.query)
-        if isinstance(sql, SQLPlaceholder):
-            self._in.append(self.params[0])
-        else:
+        try:
             for index in sql:
                 if index is not None:
                     self._in.append(self.params[index])
                 else:
                     self._in.append(None)
+        except LookupError:
+            self._in.append(self.params[0])
 
     def negate(self):
         raise SQLDecodeError('Negating IN/NOT IN not supported')
