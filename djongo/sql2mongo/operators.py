@@ -9,7 +9,7 @@ from sqlparse import tokens
 from sqlparse.sql import Token, Parenthesis, Comparison, IdentifierList, Identifier
 
 from ..exceptions import SQLDecodeError
-from .sql_tokens import SQLToken, SQLStatement, SQLPlaceholder
+from .sql_tokens import SQLToken, SQLStatement
 from . import query
 
 
@@ -83,13 +83,7 @@ class _BinaryOp(_Op):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         identifier = SQLToken.token2sql(self.statement.prev_token, self.query)
-
-        try:
-            self._field = identifier.field
-        except AttributeError:
-            for token in identifier._token.tokens:
-                if type(token) == Identifier:
-                    self._field = token.get_name()
+        self._field = identifier.field
 
     def negate(self):
         raise SQLDecodeError('Negating IN/NOT IN not supported')
@@ -112,15 +106,11 @@ class _InNotInOp(_BinaryOp):
             self.query.nested_query = NestedInQueryConverter(token, self.query, 0)
             return
 
-        sql = SQLToken.token2sql(token, self.query)
-        if isinstance(sql, SQLPlaceholder):
-            self._in.append(self.params[0])
-        else:
-            for index in sql:
-                if index is not None:
-                    self._in.append(self.params[index])
-                else:
-                    self._in.append(None)
+        for index in SQLToken.token2sql(token, self.query):
+            if index is not None:
+                self._in.append(self.params[index])
+            else:
+                self._in.append(None)
 
     def negate(self):
         raise SQLDecodeError('Negating IN/NOT IN not supported')
@@ -473,7 +463,7 @@ class _StatementParser:
                 self._op_precedence(op)
             prev_op = op
 
-        if getattr(prev_op, 'lhs', None) is None:
+        if prev_op.lhs is None:
             if isinstance(prev_op, (CmpOp, ParenthesisOp)):
                 self._ops.append(prev_op)
 
