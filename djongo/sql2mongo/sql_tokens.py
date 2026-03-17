@@ -232,7 +232,8 @@ class SQLPlaceholder(SQLToken):
         if isinstance(tok, IdentifierList):
             for aid in tok.get_identifiers():
                 yield self.get_value(aid)
-
+        elif isinstance(tok, Identifier):
+            yield self.get_value(tok)
         else:
             yield self.get_value(tok)
 
