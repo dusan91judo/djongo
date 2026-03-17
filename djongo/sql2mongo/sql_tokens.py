@@ -240,6 +240,12 @@ class SQLPlaceholder(SQLToken):
         super().__init__(token, query)
 
     def get_value(self, tok: Token):
+        if isinstance(tok, Parenthesis):
+            for token in tok.tokens:
+                if token.ttype == tokens.Name.Placeholder:
+                    tok = token
+                    break
+
         if tok.ttype == tokens.Name.Placeholder:
             return self.placeholder_index(tok)
         elif tok.match(tokens.Keyword, 'NULL'):
